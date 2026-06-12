@@ -1,0 +1,12 @@
+{
+  "name": "high52-daily-automation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "매일 신고가 돌파 종목을 수집해 구글 드라이브 문서로 저장",
+  "scripts": {
+    "start": "node extract.js"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}
