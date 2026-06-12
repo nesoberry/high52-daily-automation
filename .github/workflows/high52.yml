@@ -2,7 +2,8 @@ name: 신고가 종목 일일 수집
 
 on:
   schedule:
-    - cron: '30 7 * * *'
+    # 평일(월~금) 한국시간 오후 4시 30분 (= UTC 07:30). GitHub 무료 cron은 수십 분~수 시간 늦을 수 있음.
+    - cron: '30 7 * * 1-5'
   workflow_dispatch: {}
 
 jobs:
