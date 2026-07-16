@@ -6,6 +6,8 @@
 //  1) 단순 쿠키 문자열: "session_id=abc; token=xyz; user=...; sk_default_market=..."
 //     (브라우저 콘솔에서 copy(document.cookie) 결과를 그대로 붙여넣어도 됨)
 //  2) 기존 storageState JSON 형식 (하위 호환)
+//
+// 실행 성공 시 서버가 갱신해준 최신 쿠키를 new_session.txt로 저장 → update-secret.js가 Secret을 자동 연장.
 
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -98,12 +100,24 @@ function buildStorageState(sessionRaw) {
     return { httpStatus: 200, target_date: meta.target_date, rows: rows };
   }, API_PATH);
 
+  // 세션 자동 연장용: 갱신된 최신 쿠키를 브라우저가 닫히기 전에 확보
+  const freshCookies = await context.cookies();
   await browser.close();
 
   // 인증 실패(세션 만료 등)
   if (result.httpStatus !== 200) {
     console.error('데이터 API 인증 실패 (status=' + result.httpStatus + '). 세션이 만료됐을 수 있음 → 세션 재저장 필요.');
     process.exit(1);
+  }
+
+  // 인증이 유효했을 때만 갱신 쿠키를 저장 (죽은 세션으로 Secret을 덮어쓰지 않도록)
+  const relevant = freshCookies.filter(function (c) { return c.domain.indexOf('intellio.kr') !== -1; });
+  const cookieStr = relevant.map(function (c) { return c.name + '=' + c.value; }).join('; ');
+  if (cookieStr.indexOf('session_id=') !== -1 && cookieStr.indexOf('token=') !== -1) {
+    fs.writeFileSync('new_session.txt', cookieStr);
+    console.log('갱신된 세션 확보 완료 (자동 연장 대기)');
+  } else {
+    console.log('갱신 쿠키에 핵심 값이 없어 세션 파일 저장을 건너뜁니다.');
   }
 
   // 데이터 없음(장 미개장 등) → 조용히 종료
