@@ -16,7 +16,7 @@ jobs:
       - name: Node 설치
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: 의존성 설치 (Playwright)
         run: |
@@ -29,3 +29,31 @@ jobs:
           APPSCRIPT_WEBAPP_URL: ${{ secrets.APPSCRIPT_WEBAPP_URL }}
           SHARED_SECRET: ${{ secrets.SHARED_SECRET }}
         run: node extract.js
+
+      - name: 세션 자동 연장 (Secret 갱신)
+        if: success()
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$GH_PAT" ]; then
+            echo "GH_PAT 시크릿이 없어 세션 자동 연장을 건너뜁니다."
+            exit 0
+          fi
+          npm install libsodium-wrappers --no-save
+          node update-secret.js
+
+      - name: 실패 시 텔레그램 알림
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "텔레그램 시크릿이 없어 알림을 건너뜁니다."
+            exit 0
+          fi
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            --data-urlencode text="⚠️ 신고가 종목 수집 실패! 스탁이지 세션 만료일 수 있어요. 로그 확인: ${RUN_URL}"
