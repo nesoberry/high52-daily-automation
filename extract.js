@@ -8,6 +8,7 @@
 //  2) 기존 storageState JSON 형식 (하위 호환)
 //
 // 실행 성공 시 서버가 갱신해준 최신 쿠키를 new_session.txt로 저장 → update-secret.js가 Secret을 자동 연장.
+// 신고가 종목이 0개인 날에도 "종목 없음" 문서를 남기기 위해 웹앱은 항상 호출한다 (Apps Script가 빈 목록을 처리).
 
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -19,12 +20,10 @@ const COOKIE_DOMAIN = 'stockeasy.intellio.kr';
 function buildStorageState(sessionRaw) {
   const trimmed = sessionRaw.trim();
 
-  // 이미 JSON(storageState) 형식이면 그대로 사용
   if (trimmed.startsWith('{')) {
     return JSON.parse(trimmed);
   }
 
-  // 단순 "name=value; name=value" 쿠키 문자열 → storageState 형식으로 자동 변환
   const cookies = trimmed
     .split(';')
     .map(function (pair) { return pair.trim(); })
@@ -79,11 +78,9 @@ function buildStorageState(sessionRaw) {
   const context = await browser.newContext({ storageState: 'storageState.json' });
   const page = await context.newPage();
 
-  // 페이지 로드 → 서버가 session_id로 새 token을 발급(쿠키 갱신)
   await page.goto(PAGE_URL, { waitUntil: 'load', timeout: 60000 });
-  await page.waitForTimeout(2500); // 토큰 갱신/초기화 여유
+  await page.waitForTimeout(2500);
 
-  // 같은 출처(브라우저)에서 데이터 API 호출 → 추출
   const result = await page.evaluate(async (apiPath) => {
     const r = await fetch(apiPath, { headers: { accept: 'application/json' } });
     if (r.status !== 200) return { httpStatus: r.status, rows: [] };
@@ -100,17 +97,14 @@ function buildStorageState(sessionRaw) {
     return { httpStatus: 200, target_date: meta.target_date, rows: rows };
   }, API_PATH);
 
-  // 세션 자동 연장용: 갱신된 최신 쿠키를 브라우저가 닫히기 전에 확보
   const freshCookies = await context.cookies();
   await browser.close();
 
-  // 인증 실패(세션 만료 등)
   if (result.httpStatus !== 200) {
     console.error('데이터 API 인증 실패 (status=' + result.httpStatus + '). 세션이 만료됐을 수 있음 → 세션 재저장 필요.');
     process.exit(1);
   }
 
-  // 인증이 유효했을 때만 갱신 쿠키를 저장 (죽은 세션으로 Secret을 덮어쓰지 않도록)
   const relevant = freshCookies.filter(function (c) { return c.domain.indexOf('intellio.kr') !== -1; });
   const cookieStr = relevant.map(function (c) { return c.name + '=' + c.value; }).join('; ');
   if (cookieStr.indexOf('session_id=') !== -1 && cookieStr.indexOf('token=') !== -1) {
@@ -120,19 +114,16 @@ function buildStorageState(sessionRaw) {
     console.log('갱신 쿠키에 핵심 값이 없어 세션 파일 저장을 건너뜁니다.');
   }
 
-  // 데이터 없음(장 미개장 등) → 조용히 종료
   if (!result.rows || result.rows.length === 0) {
-    console.log('신고가 데이터 없음 → 문서 생성 생략, 정상 종료.');
-    process.exit(0);
+    console.log('신고가 데이터 없음 → "종목 없음" 문서를 생성하도록 웹앱을 그대로 호출합니다.');
+  } else {
+    console.log('추출 완료: 기준일 ' + result.target_date + ', 종목 ' + result.rows.length + '개');
   }
 
-  console.log('추출 완료: 기준일 ' + result.target_date + ', 종목 ' + result.rows.length + '개');
-
-  // Apps Script 웹앱으로 전송 → 구글 문서 생성
   const resp = await fetch(webappUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ secret: sharedSecret, target_date: result.target_date, rows: result.rows }),
+    body: JSON.stringify({ secret: sharedSecret, target_date: result.target_date, rows: result.rows || [] }),
     redirect: 'follow'
   });
   const text = await resp.text();
