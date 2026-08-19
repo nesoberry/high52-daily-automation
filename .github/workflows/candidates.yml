@@ -2,25 +2,21 @@ name: 신고가 후보 알림
 
 on:
   schedule:
-    # 평일 19:00 KST (10:00 UTC)
     - cron: '0 10 * * 1-5'
   workflow_dispatch:
 
 jobs:
   candidates:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.49.0-jammy
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Playwright 설치
+      - name: 의존성 설치
         run: |
           npm init -y
-          npm install playwright
-          npx playwright install --with-deps chromium
+          npm install playwright@1.49.0
 
       - name: 신고가 후보 수집 및 전송
         env:
