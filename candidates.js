@@ -149,7 +149,10 @@ async function scrape() {
       price: pr.price,
       high52: pr.high52,
       change: tds[7].text,
-      amount: tds[8].text.replace(/\s+/g, ' ').trim(),
+      amount: tds[8].text
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/^(\S+)\s+(20평균.*)$/, '$1 ($2)'),
       rs: rs.rs,
       rs1m: rs.rs1m,
     });
@@ -174,12 +177,15 @@ function buildMessage({ items, updated }) {
   for (const it of items) {
     const gap =
       it.gapPct === null ? '' :
-      it.gapLabel === '돌파' ? `${it.gapPct}% 돌파` : `${it.gapPct}% 남음`;
-    const rs = it.rs1m === null ? `RS ${it.rs}` : `RS ${it.rs}/${it.rs1m}`;
-    lines.push(`▪️ ${it.name} (${it.code})`);
-    lines.push(`   [${it.status}] ${gap} · ${it.sector}`);
-    lines.push(`   ${it.price}원 · ${it.change} · ${rs}`);
-    lines.push(`   ${it.amount}`);
+      it.gapLabel === '돌파' ? ` · ${it.gapPct}% 돌파` : ` · ${it.gapPct}% 남음`;
+    const rs = it.rs1m === null ? `${it.rs}` : `${it.rs} / ${it.rs1m}`;
+    const head = it.sector ? `${it.name} (${it.code}) · ${it.sector}` : `${it.name} (${it.code})`;
+    const high = it.high52 ? ` (52주고가 ${it.high52}원)` : '';
+
+    lines.push(`▪️ ${head}`);
+    lines.push(`상태: ${it.status}${gap}`);
+    lines.push(`가격: ${it.price}원${high} · ${it.change}`);
+    lines.push(`RS/1M: ${rs} · 거래대금: ${it.amount}`);
     lines.push('');
   }
 
