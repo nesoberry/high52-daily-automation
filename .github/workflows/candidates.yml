@@ -1,0 +1,30 @@
+name: 신고가 후보 알림
+
+on:
+  schedule:
+    # 평일 19:00 KST (10:00 UTC)
+    - cron: '0 10 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  candidates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Playwright 설치
+        run: |
+          npm init -y
+          npm install playwright
+          npx playwright install --with-deps chromium
+
+      - name: 신고가 후보 수집 및 전송
+        env:
+          STOCKEASY_SESSION: ${{ secrets.STOCKEASY_SESSION }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node candidates.js
