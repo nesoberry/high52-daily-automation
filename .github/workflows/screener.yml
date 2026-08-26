@@ -1,0 +1,26 @@
+name: 스크리너 알림
+
+on:
+  schedule:
+    - cron: '0 10 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  screener:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.49.0-jammy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 의존성 설치
+        run: |
+          npm init -y
+          npm install playwright@1.49.0
+
+      - name: 스크리너 수집 및 전송
+        env:
+          STOCKEASY_SESSION: ${{ secrets.STOCKEASY_SESSION }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node screener.js
