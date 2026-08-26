@@ -13,7 +13,8 @@ const DOMAIN = 'stockeasy.intellio.kr';
 
 // ── 프리셋 설정 ─────────────────────────────
 // filter: 표에서 뽑은 값으로 남길지 판단
-// sortKey: 정렬 기준 (배열 순서대로, '-' 접두사는 내림차순)
+// sortKey: 정렬 기준 (배열 순서대로 오름차순, '-' 접두사는 내림차순)
+// format: 텔레그램에 출력할 줄 (프리셋마다 보여줄 항목이 다름)
 const PRESETS = [
   {
     id: 'momentum_leader',
@@ -22,6 +23,10 @@ const PRESETS = [
     filter: (r) => r.rs >= 90 && r.rs1m >= 90,
     filterText: 'RS≥90 & RS(1M)≥90',
     sortKey: ['sector', '-rs'],
+    format: (r) => [
+      `· ${r.name}{DUP} — RS ${r.rs}/${r.rs1m}`,
+      `고점갭 ${r.gap}% · 시가총액 ${r.cap}`,
+    ],
   },
   {
     id: 'trend_template',
@@ -29,7 +34,11 @@ const PRESETS = [
     desc: '막 상승을 시작한 종목 (Stage 2 초입)',
     filter: (r) => r.rs1m >= 80 && r.gap >= -15,
     filterText: 'RS(1M)≥80 & 52주 고점갭≥-15%',
-    sortKey: ['sector', '-rs'],
+    sortKey: ['sector', '-gap'],
+    format: (r) => [
+      `· ${r.name}{DUP} — 고점갭 ${r.gap}%`,
+      `  RS ${r.rs}/${r.rs1m} · ${r.cap}`,
+    ],
   },
 ];
 
@@ -129,6 +138,7 @@ function buildMessage(results, updated) {
   const today = new Date().toLocaleDateString('ko-KR', {
     timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit',
   });
+  const LINE = '━━━━━━━━━━━━━━━━';
 
   // 중복 집계
   const seen = {};
@@ -140,43 +150,48 @@ function buildMessage(results, updated) {
 
   const out = [`📊 스크리너 (${today})`];
   if (updated) out.push(`기준 ${updated}`);
-  out.push('');
 
   for (const r of results) {
-    out.push(`━━ ${r.preset.name} · ${r.rows.length}/${r.total}종목`);
+    out.push('');
+    out.push(LINE);
+    out.push(`${r.preset.name} · ${r.rows.length}/${r.total}종목`);
     out.push(`(${r.preset.filterText})`);
+    out.push(LINE);
     out.push('');
 
     if (r.rows.length === 0) {
       out.push('조건 충족 종목 없음');
-      out.push('');
       continue;
     }
 
     let lastSector = null;
     for (const row of r.rows) {
       if (row.sector !== lastSector) {
+        if (lastSector !== null) out.push('');
         out.push(`[${row.sector}]`);
         lastSector = row.sector;
       }
-      const dup = seen[row.name].length > 1 ? ` ⭐${seen[row.name].length}` : '';
-      const rs = row.rs1m === null ? `RS ${row.rs}` : `RS ${row.rs}/${row.rs1m}`;
-      const gap = row.gap === null ? '' : ` · 고점갭 ${row.gap}%`;
-      out.push(`· ${row.name}${dup} — ${rs}${gap}`);
-      out.push(`  ${row.price}원 ${row.change} · ${row.cap}`);
+      const n = seen[row.name].length;
+      const dup = n > 1 ? ` ⭐${n}` : '';
+      for (const line of r.preset.format(row)) {
+        out.push(line.replace('{DUP}', dup));
+      }
     }
-    out.push('');
   }
 
   const dups = Object.entries(seen).filter(([, v]) => v.length > 1);
   if (dups.length > 0) {
-    out.push('━━ ⭐ 중복 종목');
+    out.push('');
+    out.push(LINE);
+    out.push('⭐ 중복 종목');
+    out.push(LINE);
+    out.push('');
     for (const [name, list] of dups.sort((a, b) => b[1].length - a[1].length)) {
       out.push(`· ${name} — ${list.join(' + ')}`);
     }
-    out.push('');
   }
 
+  out.push('');
   out.push('https://stockeasy.intellio.kr/stock-analysis/screener');
   return out.join('\n');
 }
