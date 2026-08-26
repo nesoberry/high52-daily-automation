@@ -21,6 +21,6 @@ jobs:
       - name: 스크리너 수집 및 전송
         env:
           STOCKEASY_SESSION: ${{ secrets.STOCKEASY_SESSION }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{8644538555:AAEKv9AmPCwil1O-2r48FtI1rwI1cEFuxKM}}
+          TELEGRAM_CHAT_ID: ${{6511348560}}
         run: node screener.js
