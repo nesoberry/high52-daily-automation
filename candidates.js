@@ -1,5 +1,6 @@
 // 스탁이지 "신고가 후보" 수집 → 텔레그램 발송
 // 실행: node candidates.js
+// (재동기화용 커밋 — 2026-08-26, 스케줄 워크플로 미실행 이슈 대응)
 //
 // 필요한 환경변수 (GitHub Secrets)
 //   STOCKEASY_SESSION   기존 봇과 동일한 쿠키 문자열 (예: "session_id=xxx; token=yyy; ...")
