@@ -2,7 +2,7 @@ name: 신고가 후보 알림
 
 on:
   schedule:
-    - cron: '0 10 * * 1-5'
+    - cron: '7 10 * * 1-5'
   workflow_dispatch:
 
 jobs:
