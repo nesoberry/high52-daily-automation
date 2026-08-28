@@ -2,7 +2,7 @@ name: 스크리너 알림
 
 on:
   schedule:
-    - cron: '0 10 * * 1-5'
+    - cron: '23 10 * * 1-5'
   workflow_dispatch:
 
 jobs:
