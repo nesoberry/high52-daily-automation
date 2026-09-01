@@ -159,6 +159,9 @@ async function scrape() {
     });
   }
 
+  // 중분류(섹터) 기준 오름차순 정렬 (같은 중분류 내에서는 원래 순서 유지 — sort는 안정 정렬)
+  items.sort((a, b) => (a.sector || '').localeCompare(b.sector || '', 'ko'));
+
   return { items, updated };
 }
 
